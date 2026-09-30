@@ -28,6 +28,12 @@ const postgres = DATABASE_URL ? new Pool({
 
 const imageKit = IMAGEKIT_PRIVATE_KEY ? new ImageKit({ privateKey: IMAGEKIT_PRIVATE_KEY }) : null;
 
+function originalImageKitUrl(url: string): string {
+  if (!IMAGEKIT_URL_ENDPOINT || !url.startsWith(`${IMAGEKIT_URL_ENDPOINT}/`)) return url;
+  const relativePath = url.slice(IMAGEKIT_URL_ENDPOINT.length + 1);
+  return `${IMAGEKIT_URL_ENDPOINT}/tr:orig-true/${relativePath}`;
+}
+
 // Storage directories
 const STORAGE_ROOT = path.resolve(process.cwd(), 'storage');
 const MEDIA_DIR = path.join(STORAGE_ROOT, 'media');
@@ -1396,7 +1402,7 @@ app.get('/api/device/manifest', deviceAuthMiddleware, (req: any, res: Response) 
         durationSeconds: i.durationSeconds || config.intervalSeconds || 10,
         sha256: asset.sha256,
         fileSize: asset.fileSize,
-        downloadUrl: asset.url || `/api/device/media/${asset.id}`
+        downloadUrl: asset.url ? originalImageKitUrl(asset.url) : `/api/device/media/${asset.id}`
       };
     })
     .filter(Boolean);
@@ -1417,7 +1423,7 @@ app.get('/api/device/media/:assetId', (req: Request, res: Response) => {
   }
 
   if (asset.url?.startsWith('https://')) {
-    res.redirect(302, asset.url);
+    res.redirect(302, originalImageKitUrl(asset.url));
     return;
   }
 
