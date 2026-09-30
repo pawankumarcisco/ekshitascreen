@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: screencast-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: screencast
+      POSTGRES_PASSWORD: screencast_secure_password
+      POSTGRES_DB: screencast
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U screencast"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: screencast-backend
+    restart: always
+    environment:
+      PORT: 4000
+      DATABASE_URL: postgresql://screencast:screencast_secure_password@postgres:5432/screencast?schema=public
+      JWT_SECRET: screencast-local-jwt-secret-key-39281
+      DEVICE_KEY_SECRET: screencast-device-key-secret-91823
+      MEDIA_STORAGE_DIR: /app/storage
+    ports:
+      - "4000:4000"
+    volumes:
+      - ../../storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  pgdata:

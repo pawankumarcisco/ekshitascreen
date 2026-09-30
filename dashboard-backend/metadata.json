@@ -1,0 +1,6 @@
+{
+  "name": "EkshitaScreen - Local Network Digital Signage",
+  "description": "Enterprise-grade local network digital signage management system for Android TV players with real-time sync, offline caching, and media playlists.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

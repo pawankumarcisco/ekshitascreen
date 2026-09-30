@@ -1,0 +1,200 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  ADMIN
+  OPERATOR
+  VIEWER
+}
+
+enum ActivationStatus {
+  PENDING
+  ACTIVATED
+  EXPIRED
+  CANCELLED
+}
+
+enum PlaylistStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum SyncStatus {
+  PENDING
+  DOWNLOADING
+  VERIFYING
+  APPLYING
+  COMPLETED
+  FAILED
+}
+
+model DashboardUser {
+  id           String    @id @default(uuid())
+  name         String
+  email        String    @unique
+  passwordHash String
+  role         Role      @default(OPERATOR)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  auditLogs    AuditLog[]
+}
+
+model Device {
+  id               String            @id @default(uuid())
+  deviceUid        String            @unique
+  deviceName       String?
+  appVersion       String            @default("1.0.0")
+  androidVersion   String?
+  model            String?
+  manufacturer     String?
+  registered       Boolean           @default(false)
+  registeredAt     DateTime?
+  lastSeenAt       DateTime?
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  screen           Screen?
+  activations      Activation[]
+  syncs            DeviceSync[]
+  heartbeats       DeviceHeartbeat[]
+  credentials      DeviceCredential[]
+  auditLogs        AuditLog[]
+}
+
+model Activation {
+  id                String           @id @default(uuid())
+  deviceId          String
+  codeHash          String
+  codeDisplaySuffix String?
+  status            ActivationStatus @default(PENDING)
+  expiresAt         DateTime
+  consumedAt        DateTime?
+  createdAt         DateTime         @default(now())
+  device            Device           @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model Screen {
+  id            String               @id @default(uuid())
+  deviceId      String               @unique
+  name          String
+  location      String?
+  description   String?
+  isActive      Boolean              @default(true)
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  device        Device               @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  configuration ScreenConfiguration?
+  playlists     Playlist[]
+}
+
+model ScreenConfiguration {
+  id                   String   @id @default(uuid())
+  screenId             String   @unique
+  width                Int      @default(1920)
+  height               Int      @default(1080)
+  rotation             Int      @default(0)
+  orientation          String   @default("LANDSCAPE")
+  fitMode              String   @default("FIT")
+  intervalSeconds      Int      @default(10)
+  transition           String   @default("FADE")
+  transitionDurationMs Int      @default(400)
+  loop                 Boolean  @default(true)
+  shuffle              Boolean  @default(false)
+  autoStart            Boolean  @default(true)
+  version              Int      @default(1)
+  updatedAt            DateTime @updatedAt
+  screen               Screen   @relation(fields: [screenId], references: [id], onDelete: Cascade)
+}
+
+model MediaAsset {
+  id           String         @id @default(uuid())
+  originalName String
+  storageKey   String         @unique
+  mimeType     String
+  fileSize     BigInt
+  width        Int
+  height       Int
+  sha256       String
+  createdAt    DateTime       @default(now())
+  items        PlaylistItem[]
+}
+
+model Playlist {
+  id          String         @id @default(uuid())
+  screenId    String
+  version     Int
+  status      PlaylistStatus @default(DRAFT)
+  createdBy   String
+  publishedAt DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  screen      Screen         @relation(fields: [screenId], references: [id], onDelete: Cascade)
+  items       PlaylistItem[]
+
+  @@unique([screenId, version])
+}
+
+model PlaylistItem {
+  id              String     @id @default(uuid())
+  playlistId      String
+  mediaAssetId    String
+  sortOrder       Int
+  durationSeconds Int?
+  enabled         Boolean    @default(true)
+  playlist        Playlist   @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  mediaAsset      MediaAsset @relation(fields: [mediaAssetId], references: [id], onDelete: Restrict)
+
+  @@index([playlistId, sortOrder])
+}
+
+model DeviceSync {
+  id             String     @id @default(uuid())
+  deviceId       String
+  targetVersion  Int
+  appliedVersion Int?
+  status         SyncStatus @default(PENDING)
+  progress       Int        @default(0)
+  errorMessage   String?
+  startedAt      DateTime   @default(now())
+  completedAt    DateTime?
+  device         Device     @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model DeviceHeartbeat {
+  id               String   @id @default(uuid())
+  deviceId         String
+  lastSeenAt       DateTime @default(now())
+  playbackStatus   String
+  appliedVersion   Int
+  freeStorageBytes BigInt?
+  appVersion       String
+  device           Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model DeviceCredential {
+  id             String    @id @default(uuid())
+  deviceId       String
+  credentialHash String
+  issuedAt       DateTime  @default(now())
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  device         Device    @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id        String         @id @default(uuid())
+  userId    String?
+  deviceId  String?
+  action    String
+  details   Json
+  createdAt DateTime       @default(now())
+  user      DashboardUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  device    Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+}
