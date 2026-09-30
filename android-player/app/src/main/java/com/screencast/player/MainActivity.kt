@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -82,7 +83,6 @@ class MainActivity : ComponentActivity() {
 
     private val appStateFlow = mutableStateFlow(AppState.SPLASH)
     private var showExitDialog by mutableStateOf(false)
-    private var showSettingsDialog by mutableStateOf(false)
 
     private fun <T> mutableStateFlow(initial: T) = androidx.compose.runtime.mutableStateOf(initial)
 
@@ -164,12 +164,9 @@ class MainActivity : ComponentActivity() {
                 ) {
                     when (state) {
                         AppState.SPLASH -> SplashScreen()
-                        AppState.CONNECTING -> ConnectingScreen(keyStoreHelper.getServerUrl())
-                        AppState.CONNECTION_FAILED -> ConnectionFailedScreen(
-                            serverUrl = keyStoreHelper.getServerUrl(),
-                            onRetry = { lifecycleScope.launch { startLaunchSequence() } },
-                            onOpenSettings = { showSettingsDialog = true }
-                        )
+                        AppState.CONNECTING -> ConnectingScreen()
+                        AppState.CONNECTION_FAILED -> ConnectionFailedScreen()
+
                         AppState.ACCOUNT_SUSPENDED -> AccountSuspendedScreen(suspendedValidUntil)
                         AppState.ACTIVATION_REQUEST, AppState.WAITING_FOR_REGISTRATION -> {
                             ActivationScreen(
@@ -187,26 +184,10 @@ class MainActivity : ComponentActivity() {
                     if (showExitDialog) {
                         ExitConfirmationDialog(
                             onDismiss = { showExitDialog = false },
-                            onOpenSettings = {
-                                showExitDialog = false
-                                showSettingsDialog = true
-                            },
                             onExitApp = { finishAffinity() }
                         )
                     }
 
-                    // Server Settings Dialog
-                    if (showSettingsDialog) {
-                        ServerSettingsDialog(
-                            currentUrl = keyStoreHelper.getServerUrl(),
-                            onSave = { newUrl ->
-                                keyStoreHelper.saveServerUrl(newUrl)
-                                showSettingsDialog = false
-                                lifecycleScope.launch { startLaunchSequence() }
-                            },
-                            onDismiss = { showSettingsDialog = false }
-                        )
-                    }
                 }
             }
         }
@@ -359,84 +340,49 @@ fun SplashScreen() {
 }
 
 @Composable
-fun ConnectingScreen(serverUrl: String) {
+fun ConnectingScreen() {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = Color(0xFF38BDF8), strokeWidth = 3.dp)
-            Spacer(modifier = Modifier.height(24.dp))
-            Text(
-                text = "Connecting to Local Server",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = serverUrl,
-                fontSize = 16.sp,
-                color = Color(0xFF64748B),
-                fontFamily = FontFamily.Monospace
-            )
+            EkshitaScreenLogo()
+            Spacer(modifier = Modifier.height(28.dp))
+            CircularProgressIndicator(color = Color(0xFF079CF2), strokeWidth = 3.dp)
+            Spacer(modifier = Modifier.height(18.dp))
+            Text("Connecting...", fontSize = 20.sp, color = Color(0xFFA8B2C4))
         }
     }
 }
 
 @Composable
-fun ConnectionFailedScreen(
-    serverUrl: String,
-    onRetry: () -> Unit,
-    onOpenSettings: () -> Unit
-) {
+fun ConnectionFailedScreen() {
     Box(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxSize().background(Color.Black),
         contentAlignment = Alignment.Center
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier.padding(48.dp)
         ) {
-            Text(
-                text = "EkshitaScreen",
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Spacer(modifier = Modifier.height(16.dp))
+            EkshitaScreenLogo()
+            Spacer(modifier = Modifier.height(36.dp))
             Text(
                 text = "Connection Failed",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.SemiBold,
+                fontSize = 34.sp,
+                fontWeight = FontWeight.Bold,
                 color = Color(0xFFF87171)
             )
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
             Text(
-                text = "Unable to connect to the configured local server:\n$serverUrl",
-                fontSize = 15.sp,
-                color = Color(0xFF94A3B8),
+                text = "Unable to connect to EkshitaScreen. Retrying automatically...",
+                fontSize = 17.sp,
+                color = Color(0xFFA8B2C4),
                 textAlign = TextAlign.Center
             )
-            Spacer(modifier = Modifier.height(32.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                Button(
-                    onClick = onRetry,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0284C7))
-                ) {
-                    Text("Retry")
-                }
-                OutlinedButton(
-                    onClick = onOpenSettings,
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White)
-                ) {
-                    Text("Server Settings")
-                }
-            }
         }
     }
 }
-
 @Composable
 fun AccountSuspendedScreen(validUntil: String?) {
     Box(
@@ -577,65 +523,15 @@ fun ActivationScreen(
 
 @Composable
 private fun EkshitaScreenLogo() {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.Center
-    ) {
-        Canvas(modifier = Modifier.size(width = 116.dp, height = 74.dp)) {
-            val blue = Color(0xFF079CF2)
-            drawRoundRect(
-                color = blue,
-                topLeft = Offset(size.width * .06f, size.height * .06f),
-                size = Size(size.width * .86f, size.height * .72f),
-                cornerRadius = CornerRadius(7.dp.toPx()),
-                style = androidx.compose.ui.graphics.drawscope.Stroke(width = 7.dp.toPx())
-            )
-            drawLine(
-                color = blue,
-                start = Offset(size.width * .50f, size.height * .78f),
-                end = Offset(size.width * .50f, size.height * .91f),
-                strokeWidth = 7.dp.toPx()
-            )
-            drawLine(
-                color = blue,
-                start = Offset(size.width * .34f, size.height * .91f),
-                end = Offset(size.width * .66f, size.height * .91f),
-                strokeWidth = 7.dp.toPx()
-            )
-
-            val playPath = Path().apply {
-                moveTo(size.width * .20f, size.height * .25f)
-                lineTo(size.width * .20f, size.height * .60f)
-                lineTo(size.width * .72f, size.height * .425f)
-                close()
-            }
-            drawPath(
-                path = playPath,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(Color(0xFF0B3A85), blue),
-                    startX = size.width * .2f,
-                    endX = size.width * .72f
-                )
-            )
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "Ekshita",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
-            Text(
-                text = "Screen",
-                fontSize = 42.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF079CF2)
-            )
-        }
-    }
+    Image(
+        painter = painterResource(id = R.drawable.ekshitascreen_logo),
+        contentDescription = "EkshitaScreen",
+        contentScale = ContentScale.Fit,
+        modifier = Modifier
+            .fillMaxWidth(0.72f)
+            .heightIn(max = 150.dp)
+    )
 }
-
 @Composable
 fun DownloadingScreen(sync: com.screencast.player.sync.SyncProgress) {
     Box(
@@ -740,74 +636,23 @@ fun FullscreenSlideshow(state: com.screencast.player.playback.SlideDisplayState)
 @Composable
 fun ExitConfirmationDialog(
     onDismiss: () -> Unit,
-    onOpenSettings: () -> Unit,
     onExitApp: () -> Unit
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Exit EkshitaScreen?") },
-        text = { Text("You can continue the slideshow, modify local server settings, or close the player.") },
+        text = { Text("Continue playback or close the player.") },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Continue Slideshow")
-            }
+            Button(onClick = onDismiss) { Text("Continue Playback") }
         },
         dismissButton = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onOpenSettings) {
-                    Text("Open Settings")
-                }
-                Button(
-                    onClick = onExitApp,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
-                ) {
-                    Text("Exit Application")
-                }
-            }
+            Button(
+                onClick = onExitApp,
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFDC2626))
+            ) { Text("Exit Application") }
         }
     )
 }
-
-@Composable
-fun ServerSettingsDialog(
-    currentUrl: String,
-    onSave: (String) -> Unit,
-    onDismiss: () -> Unit
-) {
-    var urlText by remember { mutableStateOf(currentUrl) }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Local Server Settings") },
-        text = {
-            Column {
-                Text(
-                    text = "Configure the HTTP address of the local EkshitaScreen backend:",
-                    fontSize = 14.sp
-                )
-                Spacer(modifier = Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = urlText,
-                    onValueChange = { urlText = it },
-                    label = { Text("Backend URL") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-        },
-        confirmButton = {
-            Button(onClick = { onSave(urlText) }) {
-                Text("Save & Connect")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text("Cancel")
-            }
-        }
-    )
-}
-
 @Composable
 fun ScreenCastPlayerTheme(content: @Composable () -> Unit) {
     MaterialTheme(

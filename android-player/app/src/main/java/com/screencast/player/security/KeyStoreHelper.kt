@@ -69,14 +69,7 @@ class KeyStoreHelper(private val context: Context) {
             .apply()
     }
 
-    fun getServerUrl(defaultUrl: String = "http://192.168.1.200:3000"): String {
-        return sharedPreferences.getString(KEY_SERVER_URL, defaultUrl) ?: defaultUrl
-    }
-
-    fun saveServerUrl(url: String) {
-        val trimmed = url.trim().removeSuffix("/")
-        sharedPreferences.edit().putString(KEY_SERVER_URL, trimmed).apply()
-    }
+    fun getServerUrl(): String = "https://ekshitascreen.online"
 
     fun resetRegistration() {
         sharedPreferences.edit()
